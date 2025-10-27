@@ -82,12 +82,7 @@ const TicketScannerDashboard = () => {
     osc.connect(gain);
     gain.connect(audioCtx.destination);
 
-    if (type === "success") {
-      osc.frequency.value = 900;
-    } else {
-      osc.frequency.value = 300;
-    }
-
+    osc.frequency.value = type === "success" ? 900 : 300;
     gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
     gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
     osc.start();
@@ -134,8 +129,8 @@ const TicketScannerDashboard = () => {
         { code, result: ticketResult, timestamp: new Date() },
         ...prev.slice(0, 9),
       ]);
-    } catch (err) {
-      const errorResult = {
+    } catch {
+      const errorResult: TicketResult = {
         message: "Server Error",
         used: null,
         scanTime: new Date().toLocaleTimeString(),
@@ -158,11 +153,16 @@ const TicketScannerDashboard = () => {
 
   // ✅ ZXing Scanner
   useEffect(() => {
-    const reader = new BrowserMultiFormatReader();
+    const reader =
+      new BrowserMultiFormatReader() as BrowserMultiFormatReader & {
+        timeBetweenScansMillis?: number;
+        reset?: () => void;
+      };
+
     reader.timeBetweenScansMillis = 1000;
 
     if (scanning && videoRef.current) {
-      reader.decodeFromVideoDevice(null, videoRef.current, (r, err) => {
+      reader.decodeFromVideoDevice(undefined, videoRef.current, (r, err) => {
         if (r) {
           processTicket(r.getText());
         }
@@ -170,7 +170,7 @@ const TicketScannerDashboard = () => {
     }
 
     return () => {
-      reader.reset();
+      if (reader.reset) reader.reset();
     };
   }, [scanning]);
 
@@ -485,19 +485,21 @@ const Stat = ({
   label: string;
   value: number;
   color: string;
-}) => (
-  <div
-    className={`text-center p-3 rounded-lg bg-${color}-50 dark:bg-${color}-900/20`}
-  >
-    <p
-      className={`text-2xl font-bold text-${color}-600 dark:text-${color}-400`}
-    >
-      {value}
-    </p>
-    <p className={`text-xs text-${color}-600 dark:text-${color}-400`}>
-      {label}
-    </p>
-  </div>
-);
+}) => {
+  const colorMap: Record<string, string> = {
+    blue: "text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20",
+    green:
+      "text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20",
+    red: "text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20",
+    gray: "text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-900/20",
+  };
+
+  return (
+    <div className={`text-center p-3 rounded-lg ${colorMap[color] || ""}`}>
+      <p className="text-2xl font-bold">{value}</p>
+      <p className="text-xs">{label}</p>
+    </div>
+  );
+};
 
 export default TicketScannerDashboard;
